@@ -30,6 +30,11 @@ func (h *Handler) HandlerUpdate(controller *controller.Controller) {
 			continue
 		}
 
+		if update.Message.Video != nil {
+			controller.OnVideo(update.Message)
+			continue
+		}
+		
 		controller.OnMessage(update.Message)
 	}
 }

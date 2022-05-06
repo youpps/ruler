@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+	"time"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/youpps/ruler/pkg/cmd"
 )
 
 type Controller struct {
@@ -27,20 +26,20 @@ func (c *Controller) OnCommand(msg *tg.Message) {
 	case "close":
 		c.BotClose(msg)
 		return
-	case "open_photo":
-		c.BotOpenPhoto(msg)
+	case "open_file":
+		c.BotOpenFile(msg)
+		return
 	case "get_file_body":
 		c.BotGetFileBody(msg)
+		return
 	case "ls":
 		c.BotLs(msg)
+		return
 	}
 }
 
 func (c *Controller) OnMessage(message *tg.Message) {
-	commandSlice := strings.Split(message.Text, " ")
-	command := exec.Command(commandSlice[0], commandSlice[1:]...)
-
-	output, err := command.Output()
+	output, err := cmd.ExecuteCommandWithOutput(message.Text)
 	if err != nil {
 		msg := tg.NewMessage(message.Chat.ID, err.Error())
 		c.bot.Send(msg)
@@ -81,7 +80,6 @@ func (c *Controller) OnPhoto(message *tg.Message) {
 		return
 	}
 
-	// Get file
 	resp, err := http.Get(link)
 	if err != nil {
 		msg := tg.NewMessage(message.Chat.ID, err.Error())
@@ -98,7 +96,6 @@ func (c *Controller) OnPhoto(message *tg.Message) {
 	}
 
 	filesDir := os.Getenv("FILES_DIRECTORY")
-	filepath := filesDir + fmt.Sprint(file.FileSize*rand.Int())
 
 	err = os.MkdirAll(filesDir, os.ModeDir)
 	if err != nil {
@@ -107,7 +104,8 @@ func (c *Controller) OnPhoto(message *tg.Message) {
 		return
 	}
 
-	// Creating new file
+	filepath := filesDir + fmt.Sprint(file.FileSize*time.Now().Second()) + ".png"
+
 	img, err := os.Create(filepath)
 	if err != nil {
 		msg := tg.NewMessage(message.Chat.ID, err.Error())
@@ -116,7 +114,54 @@ func (c *Controller) OnPhoto(message *tg.Message) {
 	}
 	defer img.Close()
 
-	// Write in new file
+	img.Write(bytes)
+
+	msg := tg.NewMessage(message.Chat.ID, "Your filepath: "+filepath)
+	c.bot.Send(msg)
+}
+
+func (c *Controller) OnVideo(message *tg.Message) {
+	video := message.Video
+	link, err := c.bot.GetFileDirectURL(video.FileID)
+	if err != nil {
+		msg := tg.NewMessage(message.Chat.ID, err.Error())
+		c.bot.Send(msg)
+		return
+	}
+	resp, err := http.Get(link)
+	if err != nil {
+		msg := tg.NewMessage(message.Chat.ID, err.Error())
+		c.bot.Send(msg)
+		return
+	}
+	defer resp.Body.Close()
+
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		msg := tg.NewMessage(message.Chat.ID, err.Error())
+		c.bot.Send(msg)
+		return
+	}
+
+	filesDir := os.Getenv("FILES_DIRECTORY")
+
+	err = os.MkdirAll(filesDir, os.ModeDir)
+	if err != nil {
+		msg := tg.NewMessage(message.Chat.ID, err.Error())
+		c.bot.Send(msg)
+		return
+	}
+
+	filepath := filesDir + fmt.Sprint(video.FileSize*video.Duration*time.Now().Second()) + ".mp4"
+
+	img, err := os.Create(filepath)
+	if err != nil {
+		msg := tg.NewMessage(message.Chat.ID, err.Error())
+		c.bot.Send(msg)
+		return
+	}
+	defer img.Close()
+
 	img.Write(bytes)
 
 	msg := tg.NewMessage(message.Chat.ID, "Your filepath: "+filepath)
@@ -144,11 +189,9 @@ func (c *Controller) BotGetFileBody(message *tg.Message) {
 	c.bot.Send(msg)
 }
 
-func (c *Controller) BotOpenPhoto(message *tg.Message) {
+func (c *Controller) BotOpenFile(message *tg.Message) {
 	filepath := message.CommandArguments()
-	fmt.Println(filepath)
-	cmd := exec.Command(filepath)
-	if err := cmd.Start(); err != nil {
+	if err := cmd.ExecuteCommand(filepath); err != nil {
 		msg := tg.NewMessage(message.Chat.ID, err.Error())
 		c.bot.Send(msg)
 		return
@@ -157,8 +200,10 @@ func (c *Controller) BotOpenPhoto(message *tg.Message) {
 	c.bot.Send(msg)
 }
 
-func (c *Controller) BotClose(msg *tg.Message) {
+func (c *Controller) BotClose(message *tg.Message) {
 	userDir := os.Getenv("FILES_DIRECTORY")
 	os.RemoveAll(userDir)
+	msg := tg.NewMessage(message.Chat.ID, "Bot has been stopped!")
+	c.bot.Send(msg)
 	os.Exit(0)
 }
