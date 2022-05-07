@@ -2,6 +2,8 @@
 
 > ### Ruler allow you to open files, download photo and video from telegram, look at system directories, check files content.
 
+<br/>
+
 ## How to try it
 
 #### 1. Clone repository: `git clone https://github.com/youpps/ruler`
@@ -22,7 +24,9 @@
 
 > ### If you send photo or file to Ruler, it will put it at `USER_HOME_DIR/jupiter` directory. If there is not the such directory in your system, it will create it.
 
-> ### You could also send a message to Ruler. Then, it will execute it like a command in the console.
+> ### You could also send a message to Ruler. In this case, it will execute it like a command in the console.
+
+<br/>
 
 ## Additional info
 
