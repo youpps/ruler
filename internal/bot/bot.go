@@ -1,6 +1,8 @@
 package bot
 
 import (
+	"os"
+
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/youpps/ruler/internal/controller"
 	"github.com/youpps/ruler/internal/handler"
@@ -21,6 +23,12 @@ func NewBot(token string) (*Bot, error) {
 func (b *Bot) Run(callback func(string)) {
 	handler := handler.NewHandler(b.bot)
 	controller := controller.NewController(b.bot)
+	callback("Telegram bot has been started.")
 	handler.HandlerUpdate(controller)
-	callback("Telegram bot has started.")
+}
+
+func (b *Bot) Destroy(callback func(string)) {
+	userDir := os.Getenv("FILES_DIRECTORY")
+	os.RemoveAll(userDir)
+	callback("Bot has destroyed all its data.")
 }

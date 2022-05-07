@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -23,8 +24,8 @@ func NewController(bot *tg.BotAPI) *Controller {
 
 func (c *Controller) OnCommand(msg *tg.Message) {
 	switch msg.Command() {
-	case "close":
-		c.BotClose(msg)
+	case "destroy":
+		c.BotDestroy(msg)
 		return
 	case "open_file":
 		c.BotOpenFile(msg)
@@ -35,6 +36,8 @@ func (c *Controller) OnCommand(msg *tg.Message) {
 	case "ls":
 		c.BotLs(msg)
 		return
+	case "shutdown":
+		c.BotShutdownOs(msg)
 	}
 }
 
@@ -49,30 +52,8 @@ func (c *Controller) OnMessage(message *tg.Message) {
 	c.bot.Send(msg)
 }
 
-func (c *Controller) BotLs(message *tg.Message) {
-	args := message.CommandArguments()
-	dirPath, err := filepath.Abs(args)
-	if err != nil {
-		msg := tg.NewMessage(message.Chat.ID, err.Error())
-		c.bot.Send(msg)
-		return
-	}
-
-	files, err := ioutil.ReadDir(args)
-	if err != nil {
-		msg := tg.NewMessage(message.Chat.ID, err.Error())
-		c.bot.Send(msg)
-		return
-	}
-
-	for _, file := range files {
-		msg := tg.NewMessage(message.Chat.ID, dirPath+"\\"+file.Name())
-		c.bot.Send(msg)
-	}
-}
-
 func (c *Controller) OnPhoto(message *tg.Message) {
-	file := message.Photo[0]
+	file := message.Photo[len(message.Photo)-1]
 	link, err := c.bot.GetFileDirectURL(file.FileID)
 	if err != nil {
 		msg := tg.NewMessage(message.Chat.ID, err.Error())
@@ -104,7 +85,8 @@ func (c *Controller) OnPhoto(message *tg.Message) {
 		return
 	}
 
-	filepath := filesDir + fmt.Sprint(file.FileSize*time.Now().Second()) + ".png"
+	extension := strings.Split(link[len(link)-10:], ".")[1]
+	filepath := filesDir + fmt.Sprint(file.FileSize*time.Now().Second()) + "." + extension
 
 	img, err := os.Create(filepath)
 	if err != nil {
@@ -152,7 +134,8 @@ func (c *Controller) OnVideo(message *tg.Message) {
 		return
 	}
 
-	filepath := filesDir + fmt.Sprint(video.FileSize*video.Duration*time.Now().Second()) + ".mp4"
+	extension := strings.Split(video.FileName, ".")[1]
+	filepath := filesDir + fmt.Sprint(video.FileSize*time.Now().Second()) + "." + extension
 
 	img, err := os.Create(filepath)
 	if err != nil {
@@ -166,6 +149,28 @@ func (c *Controller) OnVideo(message *tg.Message) {
 
 	msg := tg.NewMessage(message.Chat.ID, "Your filepath: "+filepath)
 	c.bot.Send(msg)
+}
+
+func (c *Controller) BotLs(message *tg.Message) {
+	args := message.CommandArguments()
+	dirPath, err := filepath.Abs(args)
+	if err != nil {
+		msg := tg.NewMessage(message.Chat.ID, err.Error())
+		c.bot.Send(msg)
+		return
+	}
+
+	files, err := ioutil.ReadDir(args)
+	if err != nil {
+		msg := tg.NewMessage(message.Chat.ID, err.Error())
+		c.bot.Send(msg)
+		return
+	}
+
+	for _, file := range files {
+		msg := tg.NewMessage(message.Chat.ID, dirPath+"\\"+file.Name())
+		c.bot.Send(msg)
+	}
 }
 
 func (c *Controller) BotGetFileBody(message *tg.Message) {
@@ -200,10 +205,26 @@ func (c *Controller) BotOpenFile(message *tg.Message) {
 	c.bot.Send(msg)
 }
 
-func (c *Controller) BotClose(message *tg.Message) {
+func (c *Controller) BotDestroy(message *tg.Message) {
+	fmt.Println("Bot has started destroying...")
+
 	userDir := os.Getenv("FILES_DIRECTORY")
 	os.RemoveAll(userDir)
-	msg := tg.NewMessage(message.Chat.ID, "Bot has been stopped!")
+
+	msg := tg.NewMessage(message.Chat.ID, "Bot has destroyed all its data.")
 	c.bot.Send(msg)
+
+	fmt.Println("Bot has destroyed all its data.")
+
 	os.Exit(0)
+}
+
+func (c *Controller) BotShutdownOs(message *tg.Message) {
+	if err := cmd.ExecuteCommand("shutdown", "/p"); err != nil {
+		msg := tg.NewMessage(message.Chat.ID, err.Error())
+		c.bot.Send(msg)
+		return
+	}
+	msg := tg.NewMessage(message.Chat.ID, "System has been closed!")
+	c.bot.Send(msg)
 }
