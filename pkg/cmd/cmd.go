@@ -5,19 +5,32 @@ import (
 	"os/exec"
 )
 
-func ExecuteCommand(command string) error {
-	cmd := exec.Command(os.Getenv("windir")+`\system32\cmd.exe`, "/C", command)
+func ExecuteCommand(command string, args ...string) error {
+	winDir := os.Getenv("windir")
+
+	commandArguments := []string{"/C"}
+	commandArguments = append(commandArguments, command)
+	commandArguments = append(commandArguments, args...)
+
+	cmd := exec.Command(winDir+`\system32\cmd.exe`, commandArguments...)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func ExecuteCommandWithOutput(command string) (string, error) {
-	cmd := exec.Command(os.Getenv("windir")+`\system32\cmd.exe`, "/C", command)
+func ExecuteCommandWithOutput(command string, args ...string) (string, error) {
+	winDir := os.Getenv("windir")
+
+	commandArguments := []string{"/C"}
+	commandArguments = append(commandArguments, command)
+	commandArguments = append(commandArguments, args...)
+
+	cmd := exec.Command(winDir+`\system32\cmd.exe`, commandArguments...)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
+
 	return string(output), nil
 }
